@@ -1,4 +1,4 @@
-import { Schema, model, Document } from 'mongoose';
+import { Schema, model, Document, Types } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -6,14 +6,16 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   rol: 'cliente' | 'admin';
+  wishlist: Types.ObjectId[]; // <-- NUEVO CAMPO para guardar los IDs de productos
   comparePassword(password: string): Promise<boolean>;
 }
 
 const UsuarioSchema = new Schema<IUser>({
   nombre: { type: String, required: true },
-  email: { type: String, required: true, unique: true, lowercase: true },
-  password: { type: String, required: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  password: { type: String, required: true, select: false },
   rol: { type: String, enum: ['cliente', 'admin'], default: 'cliente' },
+  wishlist: [{ type: Schema.Types.ObjectId, ref: 'Producto' }], // <-- NUEVO CAMPO
 }, { timestamps: true });
 
 UsuarioSchema.pre<IUser>('save', async function(next) {
@@ -24,7 +26,8 @@ UsuarioSchema.pre<IUser>('save', async function(next) {
 });
 
 UsuarioSchema.methods.comparePassword = async function(password: string): Promise<boolean> {
-  return await bcrypt.compare(password, this.password!);
+  if (!this.password) return false;
+  return await bcrypt.compare(password, this.password);
 };
 
 export const Usuario = model<IUser>('Usuario', UsuarioSchema);
